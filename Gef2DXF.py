@@ -4,7 +4,6 @@ import ezdxf
 
 # Create a range containing decimal values
 def drange(start, stop, step):
-
     start = int(start * 100)
     stop = int(stop * 100)
     step = int(step * 100)
@@ -13,40 +12,64 @@ def drange(start, stop, step):
     return [float(v) / 100 for v in trange]
 
 
-class extent:
+class GraphExtent:
     def __init__(self):
-        self.x_left = 0
-        self.x_right = 0
-        self.y_bottom = 0
+        self._x_left = 0
+        self._x_right = 0
+        self._y_bottom = 0
 
-    def set_x_left(self, value):
-        if value < self.x_left:
-            self.x_left = value
+    @property
+    def x_left(self):
+        return self._x_left
 
-    def set_x_right(self, value):
-        if value > self.x_right:
-            self.x_right = value
+    @x_left.setter
+    def x_left(self, value):
+        if value < self._x_left:
+            self._x_left = value
 
-    def set_y_bottom(self, value):
-        if value < self.y_bottom:
-            self.y_bottom = value
+    @property
+    def x_right(self):
+        return self._x_right
+
+    @x_right.setter
+    def x_right(self, value):
+        if value > self._x_right:
+            self._x_right = value
+
+    @property
+    def y_bottom(self):
+        return self._y_bottom
+
+    @y_bottom.setter
+    def y_bottom(self, value):
+        if value < self._y_bottom:
+            self._y_bottom = value
 
 
 class Gef2DXF:
-    def __init__(self, a_gef_file):
+    def __init__(self, a_gef_file, existing_ezdxf=None):
 
-        # Read Gef
+        """
+        Initialise the class
+        :param a_gef_file: a gef file to be processed
+        :param existing_ezdxf: a existing dwg (as ezdxf object)
+        """
         self.gef = Gef2OpenClass()
         self.gef.read_gef(a_gef_file)
 
         # Init DXF writer
         # Documentation: http://ezdxf.readthedocs.io/en/latest/
-        self.drawing = ezdxf.new(dxfversion='AC1024')
-        # drawing.layers.new(name='MyLines', dxfattribs={'linetype': 'SOLID', 'color':7})
-        self.modelspace = self.drawing.modelspace()
+
+        if existing_ezdxf is None:
+            self.drawing = ezdxf.new(dxfversion='AC1024')
+            # drawing.layers.new(name='MyLines', dxfattribs={'linetype': 'SOLID', 'color':7})
+            self.modelspace = self.drawing.modelspace()
+        else:
+            self.drawing = existing_ezdxf
+            self.modelspace = existing_ezdxf.modelspace()
 
         # Initialise drawing extent (manipulated by draw_###_ax functions)
-        self.extent = extent()
+        self.extent = GraphExtent()
 
     def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False):
         """
@@ -117,7 +140,7 @@ class Gef2DXF:
             text.set_pos((x, y), align='TOP_LEFT')
 
         # Update extent
-        self.extent.set_y_bottom(y2)
+        self.extent.y_bottom = y2
 
     def draw_horizontal_ax(self, i_kol, max_value, offset_value, value_factor, place_left=False, place_bottom=False,
                            depth_factor=1, label_height=0.2):
@@ -176,19 +199,28 @@ class Gef2DXF:
 
         # Add labels
         for label_value in drange(0, max_value + offset_value, offset_value):
-            text = self.modelspace.add_text(label_value, dxfattribs={'layer': layername, 'height': label_height})
+            if place_left:
+                label_text = abs(label_value)  # remove negative sign
+            else:
+                label_text = label_value
+            text = self.modelspace.add_text(label_text, dxfattribs={'layer': layername, 'height': label_height})
             x = label_value * value_factor
             y = ax_depth * depth_factor
             text.set_pos((x, y), align=text_align)
 
         if place_left:
-            self.extent.set_x_left(x2)
+            self.extent.x_left = x2
         else:
-            self.extent.set_x_right(x2)
+            self.extent.x_right = x2
 
     def draw_raster(self, value_factor, offset_value):
 
         # Add layer for raster
+        """
+        Draw a horizontal and vertical background raster based on the offset from the x and y axis
+        :param value_factor: scale factor for plotting the raster lines
+        :param offset_value: value defining the separation between the raster lines
+        """
         layername = 'Raster'
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': 1})
@@ -224,22 +256,23 @@ if __name__ == '__main__':
     myGef2DXF = Gef2DXF('GEFTEST01.gef')
 
     # Left up
-    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)     # Puntdruk MPa
-    myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4, place_left=True)  # Puntdruk MPa
+    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
+    myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
+                                 place_left=True)  # Puntdruk MPa
 
     # Left down
-    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)       # Lokale wrijving MPa
+    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)  # Lokale wrijving MPa
     myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
-                                 place_bottom=True, depth_factor=1)                            # Lokale wrijving MPa
+                                 place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
 
     # Right up
-    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)                        # Wrijvingsgetal
+    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)  # Wrijvingsgetal
     myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
 
     # Right down
-    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)                        # Waterdruk schouder MPa
+    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)  # Waterdruk schouder MPa
     myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
-                                 place_bottom=True, depth_factor=1)             # Waterdruk schounder MPa
+                                 place_bottom=True, depth_factor=1)  # Waterdruk schounder MPa
 
     myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
 
