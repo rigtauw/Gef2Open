@@ -71,6 +71,20 @@ class Gef2DXF:
         # Initialise drawing extent (manipulated by draw_###_ax functions)
         self.extent = GraphExtent()
 
+        # Initialise origin of graph
+        self._origin_x = 0
+        self._origin_y = 0
+
+    def set_base_of_origin(self, x, y):
+        """
+        Set the base of origin for placing the graph on an other location than x=0, y=0
+        The base of the graph is the top of the vertical ax
+        :param x: X coordinate in map units for base of graph
+        :param y: Y coordinate in map units for base of graph
+        """
+        self._origin_x = x
+        self._origin_y = y
+
     def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False):
         """
         Draw a vertical graph_line
@@ -102,7 +116,11 @@ class Gef2DXF:
             if place_left:
                 value *= -1
 
-            points.append((value * value_factor, depth * depth_factor))
+            # Move the coordinates to the origin
+            x = self._origin_x + value * value_factor
+            y = self._origin_y + depth * depth_factor
+
+            points.append((x, y))
 
         self.modelspace.add_polyline2d(points, dxfattribs={'layer': layername})
 
@@ -126,17 +144,17 @@ class Gef2DXF:
             self.drawing.layers.new(name=layername)
 
         # Add vertical ax line
-        x1 = 0
-        y1 = 0
-        x2 = 0
-        y2 = max_depth * depth_factor
+        x1 = self._origin_x
+        y1 = self._origin_y
+        x2 = self._origin_x
+        y2 = self._origin_y + max_depth * depth_factor
         self.modelspace.add_line((x1, y1), (x2, y2), dxfattribs={'layer': layername})
 
         # Add labels
         for label_value in drange(0, max_depth, offset_value):
             text = self.modelspace.add_text(label_value, dxfattribs={'layer': layername, 'height': label_height})
-            x = 0
-            y = label_value * depth_factor
+            x = self._origin_y
+            y = self._origin_y + label_value * depth_factor
             text.set_pos((x, y), align='TOP_LEFT')
 
         # Update extent
@@ -191,10 +209,10 @@ class Gef2DXF:
             raise Exception('Wrong text alignment selection.')
 
         # Add horizontal ax line
-        x1 = 0
-        y1 = ax_depth * depth_factor
-        x2 = max_value * value_factor
-        y2 = ax_depth * depth_factor
+        x1 = self._origin_x
+        y1 = self._origin_y + ax_depth * depth_factor
+        x2 = self._origin_x + max_value * value_factor
+        y2 = self._origin_y + ax_depth * depth_factor
         self.modelspace.add_line((x1, y1), (x2, y2), dxfattribs={'layer': layername})
 
         # Add labels
@@ -204,8 +222,8 @@ class Gef2DXF:
             else:
                 label_text = label_value
             text = self.modelspace.add_text(label_text, dxfattribs={'layer': layername, 'height': label_height})
-            x = label_value * value_factor
-            y = ax_depth * depth_factor
+            x = self._origin_x + label_value * value_factor
+            y = self._origin_y + ax_depth * depth_factor
             text.set_pos((x, y), align=text_align)
 
         if place_left:
@@ -225,9 +243,9 @@ class Gef2DXF:
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': 1})
 
-        range_x_left = drange(0, self.extent.x_left, value_factor * offset_value * -1)
-        range_x_right = drange(0, self.extent.x_right, value_factor * offset_value)
-        range_y_bottom = drange(0, self.extent.y_bottom, value_factor * offset_value * -1)
+        range_x_left = drange(self._origin_x, self.extent.x_left, value_factor * offset_value * -1)
+        range_x_right = drange(self._origin_x, self.extent.x_right, value_factor * offset_value)
+        range_y_bottom = drange(self._origin_y, self.extent.y_bottom, value_factor * offset_value * -1)
 
         # Horizontal lines
         for y in range_y_bottom[1:-1]:
@@ -235,11 +253,11 @@ class Gef2DXF:
 
         # Vertical lines left
         for x in range_x_left[1:]:
-            self.modelspace.add_line((x, 0), (x, self.extent.y_bottom), dxfattribs={'layer': layername})
+            self.modelspace.add_line((x, self._origin_y), (x, self.extent.y_bottom), dxfattribs={'layer': layername})
 
         # Vertical lines right
         for x in range_x_right[1:]:
-            self.modelspace.add_line((x, 0), (x, self.extent.y_bottom), dxfattribs={'layer': layername})
+            self.modelspace.add_line((x, self._origin_y), (x, self.extent.y_bottom), dxfattribs={'layer': layername})
 
     def save_drawing(self, path):
         """
@@ -254,6 +272,8 @@ if __name__ == '__main__':
     # easier to debug using standard Python development tools.
 
     myGef2DXF = Gef2DXF('GEFTEST01.gef')
+
+    # Test First GEF graph
 
     # Left up
     myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
@@ -277,4 +297,31 @@ if __name__ == '__main__':
     myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
 
     myGef2DXF.draw_raster(value_factor=1, offset_value=1)
+
+    # Set base of origin and redraw identical graph
+    myGef2DXF.set_base_of_origin(30, 30)
+
+    # Left up
+    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
+    myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
+                                 place_left=True)  # Puntdruk MPa
+
+    # Left down
+    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)  # Lokale wrijving MPa
+    myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
+                                 place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
+
+    # Right up
+    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)  # Wrijvingsgetal
+    myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
+
+    # Right down
+    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)  # Waterdruk schouder MPa
+    myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
+                                 place_bottom=True, depth_factor=1)  # Waterdruk schounder MPa
+
+    myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
+
+    myGef2DXF.draw_raster(value_factor=1, offset_value=1)
+
     myGef2DXF.save_drawing('c:/sd/gef2open/test.dxf')
