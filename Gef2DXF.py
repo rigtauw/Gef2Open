@@ -1,8 +1,6 @@
-from Gef2Open import Gef2OpenClass
 import ezdxf
 
 
-# Create a range containing decimal values
 def drange(start, stop, step):
     start = int(start * 100)
     stop = int(stop * 100)
@@ -12,11 +10,11 @@ def drange(start, stop, step):
     return [float(v) / 100 for v in trange]
 
 
-class GraphExtent:
-    def __init__(self):
-        self._x_left = 0
-        self._x_right = 0
-        self._y_bottom = 0
+class GraphExtent(object):
+    def __init__(self, x_center=0, y_center=0):
+        self._x_left = x_center
+        self._x_right = x_center
+        self._y_bottom = y_center
 
     @property
     def x_left(self):
@@ -47,15 +45,14 @@ class GraphExtent:
 
 
 class Gef2DXF:
-    def __init__(self, a_gef_file, existing_ezdxf=None):
+    def __init__(self, a_GEF2OpenClass_object, existing_ezdxf=None):
 
         """
         Initialise the class
-        :param a_gef_file: a gef file to be processed
+        :param a_gef_file: a GEF2OpenClass object with an properly processed GEF file
         :param existing_ezdxf: a existing dwg (as ezdxf object)
         """
-        self.gef = Gef2OpenClass()
-        self.gef.read_gef(a_gef_file)
+        self.gef = a_GEF2OpenClass_object
 
         # Init DXF writer
         # Documentation: http://ezdxf.readthedocs.io/en/latest/
@@ -78,20 +75,23 @@ class Gef2DXF:
     def set_base_of_origin(self, x, y):
         """
         Set the base of origin for placing the graph on an other location than x=0, y=0
-        The base of the graph is the top of the vertical ax
+        The base of the graph is the top of the vertical ax.
+        Initialise GraphExtent using the same base.
         :param x: X coordinate in map units for base of graph
         :param y: Y coordinate in map units for base of graph
         """
         self._origin_x = x
         self._origin_y = y
+        self.extent = GraphExtent(x_center=x, y_center=y)
 
-    def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False):
+    def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False, color=0):
         """
         Draw a vertical graph_line
         :param i_kol: index of column in GEF file
         :param value_factor: scale factor for plotting values
         :param depth_factor: scale factor for plotting depth
         :param place_left: place left of central Y-axis if TRUE
+        :param color: line color in AutoCAD Color Index
         """
 
         # Change depth factor to negative for drawing underground
@@ -100,7 +100,7 @@ class Gef2DXF:
         # Add Layer for valuetype
         layername = self.gef.get_column_info(i_kol)[2]
         if layername not in self.drawing.layers:
-            self.drawing.layers.new(name=layername)
+            self.drawing.layers.new(name=layername, dxfattribs={'color': color})
 
         points = list()
         value_prev = 0
@@ -141,7 +141,7 @@ class Gef2DXF:
         # Add Layer for valuetype
         layername = 'Axis'
         if layername not in self.drawing.layers:
-            self.drawing.layers.new(name=layername)
+            self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
         # Add vertical ax line
         x1 = self._origin_x
@@ -153,7 +153,7 @@ class Gef2DXF:
         # Add labels
         for label_value in drange(0, max_depth, offset_value):
             text = self.modelspace.add_text(label_value, dxfattribs={'layer': layername, 'height': label_height})
-            x = self._origin_y
+            x = self._origin_x
             y = self._origin_y + label_value * depth_factor
             text.set_pos((x, y), align='TOP_LEFT')
 
@@ -178,7 +178,7 @@ class Gef2DXF:
         # Add Axis Layer for value type
         layername = self.gef.get_column_info(i_kol)[2] + " Axis"
         if layername not in self.drawing.layers:
-            self.drawing.layers.new(name=layername)
+            self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
         # Change values to negative for left hand drawing
         if place_left:
@@ -241,14 +241,14 @@ class Gef2DXF:
         """
         layername = 'Raster'
         if layername not in self.drawing.layers:
-            self.drawing.layers.new(name=layername, dxfattribs={'color': 1})
+            self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
         range_x_left = drange(self._origin_x, self.extent.x_left, value_factor * offset_value * -1)
         range_x_right = drange(self._origin_x, self.extent.x_right, value_factor * offset_value)
         range_y_bottom = drange(self._origin_y, self.extent.y_bottom, value_factor * offset_value * -1)
 
         # Horizontal lines
-        for y in range_y_bottom[1:-1]:
+        for y in range_y_bottom[1:]:
             self.modelspace.add_line((self.extent.x_left, y), (self.extent.x_right, y), dxfattribs={'layer': layername})
 
         # Vertical lines left
@@ -271,28 +271,31 @@ if __name__ == '__main__':
     # This is used for debugging. Using this separated structure makes it much
     # easier to debug using standard Python development tools.
 
-    myGef2DXF = Gef2DXF('GEFTEST01.gef')
+    import Gef2Open
+    myGEF = Gef2Open.Gef2OpenClass()
+    myGEF.read_gef('GEFTEST01.gef')
 
     # Test First GEF graph
+    myGef2DXF = Gef2DXF(myGEF)
 
     # Left up
-    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
+    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True, color=54)  # Puntdruk MPa
     myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
                                  place_left=True)  # Puntdruk MPa
 
     # Left down
-    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)  # Lokale wrijving MPa
+    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True, color=4)  # Lokale wrijving MPa
     myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
                                  place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
 
     # Right up
-    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)  # Wrijvingsgetal
+    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1, color=40)  # Wrijvingsgetal
     myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
 
     # Right down
-    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)  # Waterdruk schouder MPa
+    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1, color=1)  # Waterdruk schouder MPa
     myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
-                                 place_bottom=True, depth_factor=1)  # Waterdruk schounder MPa
+                                 place_bottom=True, depth_factor=1)  # Waterdruk schouder MPa
 
     myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
 
