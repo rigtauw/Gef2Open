@@ -45,14 +45,22 @@ class GraphExtent(object):
 
 
 class Gef2DXF:
-    def __init__(self, a_GEF2OpenClass_object, existing_ezdxf=None):
+    def __init__(self, a_GEF2OpenClass_object, existing_ezdxf=None, use_corrected_depth=False):
 
         """
         Initialise the class
         :param a_gef_file: a GEF2OpenClass object with an properly processed GEF file
         :param existing_ezdxf: a existing dwg (as ezdxf object)
+        :param use_corrected_depth: If true corrected depth (quantity number 11) is used instead of penetration length
         """
         self.gef = a_GEF2OpenClass_object
+        if use_corrected_depth:
+            if self.gef.qn2column(11) is None:
+                self.depth_col = 1
+            else:
+                self.depth_col = self.gef.qn2column(11)
+        else:
+            self.depth_col = 1
 
         # Init DXF writer
         # Documentation: http://ezdxf.readthedocs.io/en/latest/
@@ -105,7 +113,7 @@ class Gef2DXF:
         points = list()
         value_prev = 0
 
-        for depth, value in self.gef.get_data_iter(i_kol):
+        for depth, value in self.gef.get_data_iter(i_kol, depth_col=self.depth_col):
             # Replace None with previous value for missing data
             if value is None:
                 value = value_prev
@@ -136,7 +144,7 @@ class Gef2DXF:
 
         # Get max scan depth
         last_scan = int(self.gef.get_nr_scans())
-        max_depth = self.gef.get_data(1, last_scan)
+        max_depth = self.gef.get_data(self.depth_col, last_scan)
 
         # Add Layer for valuetype
         layername = 'Axis'
@@ -192,7 +200,7 @@ class Gef2DXF:
         if place_bottom:
             # Get max scan depth
             last_scan = int(self.gef.get_nr_scans())
-            ax_depth = self.gef.get_data(1, last_scan)
+            ax_depth = self.gef.get_data(self.depth_col, last_scan)
         else:
             ax_depth = 0
 
@@ -276,7 +284,7 @@ if __name__ == '__main__':
     myGEF.read_gef('GEFTEST01.gef')
 
     # Test First GEF graph
-    myGef2DXF = Gef2DXF(myGEF)
+    myGef2DXF = Gef2DXF(myGEF, use_corrected_depth=True)
 
     # Left up
     myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True, color=54)  # Puntdruk MPa
