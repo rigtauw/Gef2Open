@@ -14,6 +14,7 @@ class GraphExtent(object):
     def __init__(self, x_center=0, y_center=0):
         self._x_left = x_center
         self._x_right = x_center
+        self._y_top = y_center
         self._y_bottom = y_center
 
     @property
@@ -33,6 +34,15 @@ class GraphExtent(object):
     def x_right(self, value):
         if value > self._x_right:
             self._x_right = value
+
+    @property
+    def y_top(self):
+        return self._y_top
+
+    @y_top.setter
+    def y_top(self, value):
+        if value < self._y_top:
+            self._y_top = value
 
     @property
     def y_bottom(self):
