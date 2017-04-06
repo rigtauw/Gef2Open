@@ -201,13 +201,13 @@ class Gef2OpenClass:
 
     # TODO continue get_data_iter
     # Purpose: geeft een iterator met alle waarden voor een bepaalde kolom in een data block
-    def get_data_iter(self, i_Kol):
+    def get_data_iter(self, i_Kol, depth_col=1):
         try:
             if 'datablok' in self.headerdict:
                 if len(self.headerdict['datablok'][1]) >= i_Kol - 1:
                     void = self.get_column_void(i_Kol)
                     for i_Rij in range(1, 1 + int(self.get_nr_scans())):
-                        depth = self.get_data(1, i_Rij)
+                        depth = self.get_data(depth_col, i_Rij)
                         value = self.get_data(i_Kol, i_Rij)
                         if value == void:  #Replace nodata value for None
                             value = None
@@ -567,7 +567,8 @@ class Gef2OpenClass:
             return int(out)
         except:
             # return None
-            return 'Error: Quantity Number niet gevonden in GEF file'
+            print 'Error: Quantity Number niet gevonden in GEF file'
+            return None
 
     # Purpose: Leest een gegeven Gef bestand en zet alle info in een dictionary
     def read_gef(self, i_sBestandGef):
@@ -661,6 +662,9 @@ class Gef2OpenClass:
             print (
                 "%s Headerdict() in UtlGefOpen.py geef IndexError: fout bij uitlezen gef" % os.path.basename(
                     i_sBestandGef))
+            return False
+        except:
+            print "Fout bij het inlezen van gef {}".format(os.path.basename(i_sBestandGef))
             return False
 
     # Purpose: Of een bestand geplot kan worden
