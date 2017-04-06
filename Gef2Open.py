@@ -663,6 +663,9 @@ class Gef2OpenClass:
                 "%s Headerdict() in UtlGefOpen.py geef IndexError: fout bij uitlezen gef" % os.path.basename(
                     i_sBestandGef))
             return False
+        except:
+            print "Fout bij het inlezen van gef {}".format(os.path.basename(i_sBestandGef))
+            return False
 
     # Purpose: Of een bestand geplot kan worden
     def is_plotable(self):
