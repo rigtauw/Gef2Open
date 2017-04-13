@@ -216,13 +216,13 @@ class Gef2DXF:
 
         # Define text alignment
         if place_left and place_bottom:
-            text_align = 'TOP_RIGHT'
+            text_align = 'TOP_CENTER'
         elif place_left and not place_bottom:
-            text_align = 'BOTTOM_RIGHT'
+            text_align = 'BOTTOM_CENTER'
         elif not place_left and place_bottom:
-            text_align = 'TOP_LEFT'
+            text_align = 'TOP_CENTER'
         elif not place_left and not place_bottom:
-            text_align = 'BOTTOM_LEFT'
+            text_align = 'BOTTOM_CENTER'
         else:
             raise Exception('Wrong text alignment selection.')
 
