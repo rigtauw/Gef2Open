@@ -102,7 +102,8 @@ class Gef2DXF:
         self._origin_y = y
         self.extent = GraphExtent(x_center=x, y_center=y)
 
-    def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False, color=0):
+    def draw_graph_line(self, i_kol, value_factor, depth_factor, place_left=False, color=0,
+                        max_value=None, label_height=0.2):
         """
         Draw a vertical graph_line
         :param i_kol: index of column in GEF file
@@ -110,6 +111,9 @@ class Gef2DXF:
         :param depth_factor: scale factor for plotting depth
         :param place_left: place left of central Y-axis if TRUE
         :param color: line color in AutoCAD Color Index
+        :param max_value: line is cutoff on maximum value and replaced with a label
+        :param label_height: label height in map units
+         
         """
 
         # Change depth factor to negative for drawing underground
@@ -123,12 +127,55 @@ class Gef2DXF:
         points = list()
         value_prev = 0
 
+        extreme_range = False
+        lst_extreme_range = list()
+
         for depth, value in self.gef.get_data_iter(i_kol, depth_col=self.depth_col):
             # Replace None with previous value for missing data
             if value is None:
                 value = value_prev
             else:
                 value_prev = value
+
+            # Check if extreme value
+            if max_value is not None:
+                if value > max_value:
+                    extreme = True
+                    if extreme_range:  # Add value to extreme range
+                        lst_extreme_range.append([depth, value])
+                    else:  # Start a new extreme range
+                        extreme_range = True
+                        print 'Start extreme range {}'.format(max_value)
+                        lst_extreme_range = list()
+                else:
+                    extreme = False
+                    if extreme_range:  # Process end of extreme range
+
+                        depth_mean = (lst_extreme_range[0][0] + lst_extreme_range[-1][0]) / 2
+                        value_max = max([v[1] for v in lst_extreme_range])
+                        value_min = min([v[1] for v in lst_extreme_range])
+
+                        if place_left:  # For left hand drawing
+                            max_value_x = max_value * -1
+                        else:
+                            max_value_x = max_value
+
+                        # Place the label
+                        x = self._origin_x + max_value_x * value_factor
+                        y = self._origin_y + depth_mean * depth_factor
+                        text = self.modelspace.add_text(value_max, dxfattribs={'layer': layername,
+                                                                               'height': label_height})
+                        if place_left:
+                            text.set_pos((x, y), align='MIDDLE_RIGHT')
+                        else:
+                            text.set_pos((x, y), align='MIDDLE_LEFT')
+
+                        for depth_ext, value_ext in lst_extreme_range:
+                            print '{}: {}'.format(depth_ext, value_ext)
+                        print 'Einde extreme range'
+                        extreme_range = False
+            else:
+                extreme = False
 
             # Change value to negative for left hand drawing
             if place_left:
@@ -138,7 +185,9 @@ class Gef2DXF:
             x = self._origin_x + value * value_factor
             y = self._origin_y + depth * depth_factor
 
-            points.append((x, y))
+            # Save value
+            if not extreme:
+                points.append((x, y))
 
         self.modelspace.add_polyline2d(points, dxfattribs={'layer': layername})
 
@@ -291,27 +340,28 @@ if __name__ == '__main__':
 
     import Gef2Open
     myGEF = Gef2Open.Gef2OpenClass()
-    myGEF.read_gef('GEFTEST01.gef')
+    myGEF.read_gef(r'c:\GIS\1248421\GEFTEST05.gef')
 
     # Test First GEF graph
-    myGef2DXF = Gef2DXF(myGEF, use_corrected_depth=True)
+    myGef2DXF = Gef2DXF(myGEF, use_corrected_depth=False)
 
     # Left up
-    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True, color=54)  # Puntdruk MPa
+    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True, color=54,
+                              max_value=30)  # Puntdruk MPa
     myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
                                  place_left=True)  # Puntdruk MPa
 
     # Left down
-    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True, color=4)  # Lokale wrijving MPa
+    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True, color=4, max_value=0.5)  # Lokale wrijving MPa
     myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
                                  place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
 
     # Right up
-    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1, color=40)  # Wrijvingsgetal
+    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1, color=40, max_value=12)  # Wrijvingsgetal
     myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
 
     # Right down
-    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1, color=1)  # Waterdruk schouder MPa
+    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1, color=1, max_value=0.5)  # Waterdruk schouder MPa
     myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
                                  place_bottom=True, depth_factor=1)  # Waterdruk schouder MPa
 
@@ -319,30 +369,30 @@ if __name__ == '__main__':
 
     myGef2DXF.draw_raster(value_factor=1, offset_value=1)
 
-    # Set base of origin and redraw identical graph
-    myGef2DXF.set_base_of_origin(30, 30)
+    # # Set base of origin and redraw identical graph
+    # myGef2DXF.set_base_of_origin(30, 30)
+    #
+    # # Left up
+    # myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
+    # myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
+    #                              place_left=True)  # Puntdruk MPa
+    #
+    # # Left down
+    # myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)  # Lokale wrijving MPa
+    # myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
+    #                              place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
+    #
+    # # Right up
+    # myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)  # Wrijvingsgetal
+    # myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
+    #
+    # # Right down
+    # myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)  # Waterdruk schouder MPa
+    # myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
+    #                              place_bottom=True, depth_factor=1)  # Waterdruk schounder MPa
+    #
+    # myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
+    #
+    # myGef2DXF.draw_raster(value_factor=1, offset_value=1)
 
-    # Left up
-    myGef2DXF.draw_graph_line(i_kol=2, value_factor=0.4, depth_factor=1, place_left=True)  # Puntdruk MPa
-    myGef2DXF.draw_horizontal_ax(i_kol=2, max_value=30, offset_value=5, value_factor=0.4,
-                                 place_left=True)  # Puntdruk MPa
-
-    # Left down
-    myGef2DXF.draw_graph_line(i_kol=3, value_factor=20, depth_factor=1, place_left=True)  # Lokale wrijving MPa
-    myGef2DXF.draw_horizontal_ax(i_kol=3, max_value=0.5, offset_value=0.1, value_factor=20, place_left=True,
-                                 place_bottom=True, depth_factor=1)  # Lokale wrijving MPa
-
-    # Right up
-    myGef2DXF.draw_graph_line(i_kol=6, value_factor=1, depth_factor=1)  # Wrijvingsgetal
-    myGef2DXF.draw_horizontal_ax(i_kol=6, max_value=12, offset_value=2, value_factor=1)  # Wrijvingsgetal
-
-    # Right down
-    myGef2DXF.draw_graph_line(i_kol=4, value_factor=20, depth_factor=1)  # Waterdruk schouder MPa
-    myGef2DXF.draw_horizontal_ax(i_kol=4, max_value=0.5, offset_value=0.1, value_factor=20,
-                                 place_bottom=True, depth_factor=1)  # Waterdruk schounder MPa
-
-    myGef2DXF.draw_vertical_ax(depth_factor=1, offset_value=1)
-
-    myGef2DXF.draw_raster(value_factor=1, offset_value=1)
-
-    myGef2DXF.save_drawing('c:/sd/gef2open/test.dxf')
+    myGef2DXF.save_drawing(r'c:\GIS\1248421\GEFTEST05.dxf')
