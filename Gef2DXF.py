@@ -120,7 +120,7 @@ class Gef2DXF:
         depth_factor *= -1
 
         # Add Layer for valuetype
-        layername = self.gef.get_column_info(i_kol)[2]
+        layername = 'GEF {}'.format(self.gef.get_column_info(i_kol)[2])
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': color})
 
@@ -206,7 +206,7 @@ class Gef2DXF:
         max_depth = self.gef.get_data(self.depth_col, last_scan)
 
         # Add Layer for valuetype
-        layername = 'Axis'
+        layername = 'GEF Vertical Axis'
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
@@ -243,7 +243,7 @@ class Gef2DXF:
         """
 
         # Add Axis Layer for value type
-        layername = self.gef.get_column_info(i_kol)[2] + " Axis"
+        layername = 'GEF {} Axis'.format(self.gef.get_column_info(i_kol)[2])
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
@@ -306,7 +306,7 @@ class Gef2DXF:
         :param value_factor: scale factor for plotting the raster lines
         :param offset_value: value defining the separation between the raster lines
         """
-        layername = 'Raster'
+        layername = 'GEF Raster'
         if layername not in self.drawing.layers:
             self.drawing.layers.new(name=layername, dxfattribs={'color': 0})
 
