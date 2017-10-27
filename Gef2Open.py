@@ -75,20 +75,6 @@ class Gef2OpenClass:
         except:
             return None
 
-    # Purpose: Of #COMPANYID aanwezig
-    def get_companyid_flag(self):
-        if 'COMPANYID' in self.headerdict:
-            if len(self.headerdict['COMPANYID']) > 0:
-                out = True
-            else:
-                out = False
-        else:
-            out = False
-        try:
-            return out
-        except:
-            return None
-
     # Purpose: Geeft aantal kolommen in het data block
     def get_column(self):
         if 'COLUMN' in self.headerdict:
@@ -176,11 +162,54 @@ class Gef2OpenClass:
         except:
             return None
 
+    # Purpose: Of #COMPANYID aanwezig
+    def get_companyid_flag(self):
+        if 'COMPANYID' in self.headerdict:
+            if len(self.headerdict['COMPANYID']) > 0:
+                out = True
+            else:
+                out = False
+        else:
+            out = False
+        try:
+            return out
+        except:
+            return None
+
     # Purpose: Geeft company naam
     def get_companyid_Name(self):
         if 'COMPANYID' in self.headerdict:
             if len(self.headerdict['COMPANYID']) > 0:
                 out = self.headerdict['COMPANYID'][0]
+            else:
+                err = 'MissingValue'
+        else:
+            err = 'MissingKeyword'
+        try:
+            return out
+        except:
+            # return None
+            return 'Error:%s' % (err)
+
+    # Purpose: Of #TESTID aanwezig
+    def get_testid_flag(self):
+        if 'TESTID' in self.headerdict:
+            if len(self.headerdict['TESTID']) > 0:
+                out = True
+            else:
+                out = False
+        else:
+            out = False
+        try:
+            return out
+        except:
+            return None
+
+    # Purpose: Geeft testid naam
+    def get_testid_name(self):
+        if 'TESTID' in self.headerdict:
+            if len(self.headerdict['TESTID']) > 0:
+                out = self.headerdict['TESTID'][0]
             else:
                 err = 'MissingValue'
         else:
