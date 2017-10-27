@@ -4,7 +4,8 @@
 
 import re
 import os
-
+import traceback
+import sys
 
 # Hulpfuncties
 def is_number(s):
@@ -19,6 +20,15 @@ def removetrailers(string):
     d = re.sub('^[\t|\ ]*', '', string)
     e = re.sub('\r\n$', '', d)
     return e
+
+
+def Traceback():
+    """"Returns error messages and prints them."""
+
+    tb = sys.exc_info()[2]
+    tbinfo = traceback.format_tb(tb)[0]
+    pymsg = "PYTHON ERRORS:\nTraceback info:\n" + tbinfo + "\nError Info:\n" + str(sys.exc_info()[1])
+    print pymsg
 
 
 class Gef2OpenClass:
@@ -665,6 +675,7 @@ class Gef2OpenClass:
             return False
         except:
             print "Fout bij het inlezen van gef {}".format(os.path.basename(i_sBestandGef))
+            Traceback()
             return False
 
     # Purpose: Of een bestand geplot kan worden
@@ -682,7 +693,7 @@ if __name__ == '__main__':
     # easier to debug using standard Python development tools.
 
     myGef = Gef2OpenClass()
-    myGef.read_gef('C:/GIS/1248421/GEFTEST01.gef')
+    myGef.read_gef(r'c:\GIS\1248421\02P005522_1.GEF')
 
     # Variables for testing
     i_Kol = 2
