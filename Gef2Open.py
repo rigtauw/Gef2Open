@@ -674,8 +674,8 @@ class Gef2OpenClass:
                             data = par
                             data = re.sub(';!', '', data)  # einde dataregel. moet hier een test op?
                             data = re.sub("'", "", data)
-                            data = re.sub('"', '', data)
-                            data = re.split(';|\ |\t|\n', data)
+                            data = re.sub(' ', '', data)
+                            data = re.split(';|\|\t|\n', data)
                             a2 = []
                             for i in data:
                                 if is_number(i):
